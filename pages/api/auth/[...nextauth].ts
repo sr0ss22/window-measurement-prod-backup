@@ -14,7 +14,7 @@ const authOptions: NextAuthOptions = {
       },
       // Use custom redirect URI for measure app integration
       redirectUri: process.env.NODE_ENV === 'production' 
-        ? "https://dev.hdbrite.com/api/auth/callback/zitadel"
+        ? "https://window-measurement-prod-backup-zadh-dubj0j0vs.vercel.app/api/auth/callback/zitadel"
         : "http://localhost:3000/api/auth/callback/zitadel",
       async profile(profile: any) {
         try {
