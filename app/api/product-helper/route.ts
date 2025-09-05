@@ -24,10 +24,10 @@ export async function POST(request: Request) {
 
     // Create a Supabase client with the public anon key.
     // This is sufficient for accessing public storage buckets.
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // 1. List files from the 'knowledge' bucket
     const { data: files, error: listError } = await supabase.storage.from('knowledge').list();

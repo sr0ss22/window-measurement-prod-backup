@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/unified-auth-context";
 import { useRouter, useSearchParams } from "next/navigation"; // Changed useParams to useSearchParams
@@ -194,7 +194,7 @@ function SortableSection({ section, updateSection, deleteSection, addFieldToSect
   );
 }
 
-export default function FormBuilderPage() {
+function FormBuilderContent() {
   const searchParams = useSearchParams(); // Changed useParams to useSearchParams
   const formId = searchParams.get('formId'); // Get formId from query parameter
   const { user, supabase, isLoading: isAuthLoading } = useAuth();
@@ -463,5 +463,19 @@ export default function FormBuilderPage() {
         onConversationHistoryChange={setAiConversationHistory}
       />
     </div>
+  );
+}
+
+export default function FormBuilderPage() {
+  return (
+    <Suspense fallback={
+      <div className="p-4 space-y-4">
+        <Skeleton className="h-10 w-1/4" />
+        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    }>
+      <FormBuilderContent />
+    </Suspense>
   );
 }

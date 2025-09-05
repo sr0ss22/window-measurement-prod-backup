@@ -1,7 +1,15 @@
 import { createClient } from './client'; // Supabase client
 import { v4 as uuidv4 } from 'uuid'; // For unique file names
 
-const supabase = createClient();
+// Lazy load Supabase client to avoid build-time issues
+let supabase: ReturnType<typeof createClient> | null = null;
+const getSupabase = () => {
+  if (!supabase) {
+    supabase = createClient();
+  }
+  return supabase;
+};
+
 const BUCKET_NAME = 'window-files'; // Assuming this bucket exists
 
 /**
@@ -24,7 +32,8 @@ export async function uploadBase64File(base64Data: string, folder: string, userI
   const path = `${fileName}`;
 
   try {
-    const { data, error } = await supabase.storage
+    const supabaseClient = getSupabase();
+    const { data, error } = await supabaseClient.storage
       .from(BUCKET_NAME)
       .upload(path, decode(base64Content), {
         contentType: mimeType,
@@ -37,7 +46,7 @@ export async function uploadBase64File(base64Data: string, folder: string, userI
     }
 
     // Get public URL
-    const { data: publicUrlData } = supabase.storage
+    const { data: publicUrlData } = supabaseClient.storage
       .from(BUCKET_NAME)
       .getPublicUrl(path);
 
@@ -101,7 +110,8 @@ export async function deleteFile(filePath: string): Promise<boolean> {
   const relativePath = urlParts.length > 1 ? urlParts[1] : filePath; // Handle both public URL and direct path
 
   try {
-    const { error } = await supabase.storage
+    const supabaseClient = getSupabase();
+    const { error } = await supabaseClient.storage
       .from(BUCKET_NAME)
       .remove([relativePath]);
 
