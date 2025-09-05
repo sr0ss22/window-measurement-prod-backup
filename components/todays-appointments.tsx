@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/context/unified-auth-context";
 import { format, startOfToday, endOfToday, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,16 +22,16 @@ export function TodaysAppointments() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchTodaysAppointments = async () => {
-      if (!user) return;
-      setIsLoading(true);
+      const fetchTodaysAppointments = async () => {
+    if (!user || !supabase) return;
+    setIsLoading(true);
 
-      // Fetch user's company_id first
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('id', user.id)
-        .single();
+    // Fetch user's company_id first
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('company_id')
+      .eq('id', user.id)
+      .single();
 
       if (profileError || !profileData?.company_id) {
         console.error("Error fetching user's company ID for appointments:", profileError);
@@ -95,7 +95,7 @@ export function TodaysAppointments() {
           <div className="space-y-2">
             {appointments.map((appointment) => (
               <Link
-                href={`/work-order?id=${appointment.project_id}`}
+                href={`/work-orders/${appointment.project_id}`}
                 key={appointment.id}
                 className="block"
               >

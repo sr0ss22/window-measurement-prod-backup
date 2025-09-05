@@ -15,16 +15,17 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Wrench, FolderOpen, LogOut, Calendar, User as UserIcon, ClipboardList, FileClock, CalendarPlus, CalendarCheck2, HardHat, RefreshCw } from "lucide-react"
-import { useAuth } from "@/context/auth-context"
+import { useAuth } from "@/context/unified-auth-context"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useState, useEffect, useCallback } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { workOrdersService } from "@/apiUtils/services/workOrdersService"
 import { toast } from "@/components/ui/use-toast"
 
 export function AppSidebar() {
-  const { user, session, supabase, signOut } = useAuth() // Destructure session here
+  const { user, session, accessToken, signOut } = useAuth() // Destructure session here
   const { isMobile, setOpenMobile } = useSidebar() // Destructure setOpenMobile
 
   const [projectCounts, setProjectCounts] = useState({
@@ -37,69 +38,39 @@ export function AppSidebar() {
   const [isSyncing, setIsSyncing] = useState(false);
 
   const fetchProjectCounts = useCallback(async () => {
-    if (!user) return
+    if (!user || !accessToken) return
 
-    // Fetch user's company_id first
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('company_id')
-      .eq('id', user.id)
-      .single();
+    try {
+      // Fetch work orders from CPQ API and count by status
+      const response = await workOrdersService.getWorkOrders({
+        page: 1,
+        pageSize: 1000, // Get all to count
+      }, accessToken);
 
-    if (profileError || !profileData?.company_id) {
-      console.error("Error fetching user's company ID for project counts:", profileError);
-      return;
+      const workOrders = response.workOrders;
+      
+      // Count by status
+      const counts = {
+        all: workOrders.length,
+        pendingAcceptance: workOrders.filter(wo => wo.status === 'Pending Acceptance').length,
+        pendingSchedule: workOrders.filter(wo => wo.status === 'Pending Schedule').length,
+        scheduled: workOrders.filter(wo => wo.status === 'Scheduled').length,
+        onSiteComplete: workOrders.filter(wo => wo.status === 'On-Site Complete').length,
+      };
+
+      setProjectCounts(counts);
+    } catch (error) {
+      console.error('Error fetching project counts:', error);
+      // Set all counts to 0 on error
+      setProjectCounts({
+        all: 0,
+        pendingAcceptance: 0,
+        pendingSchedule: 0,
+        scheduled: 0,
+        onSiteComplete: 0,
+      });
     }
-    const userCompanyId = profileData.company_id;
-
-    const { count: allCount, error: allError } = await supabase
-      .from('projects')
-      .select('count', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('company_id', userCompanyId) // Filter by company_id
-      .neq('status', 'Complete') // Count all active projects
-
-    const { count: pendingAcceptanceCount, error: pendingAcceptanceError } = await supabase
-      .from('projects')
-      .select('count', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('company_id', userCompanyId) // Filter by company_id
-      .eq('status', 'Pending Acceptance')
-
-    const { count: pendingScheduleCount, error: pendingScheduleError } = await supabase
-      .from('projects')
-      .select('count', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('company_id', userCompanyId) // Filter by company_id
-      .eq('status', 'Pending Schedule')
-
-    const { count: scheduledCount, error: scheduledError } = await supabase
-      .from('projects')
-      .select('count', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('company_id', userCompanyId) // Filter by company_id
-      .eq('status', 'Scheduled')
-
-    const { count: onSiteCompleteCount, error: onSiteCompleteError } = await supabase
-      .from('projects')
-      .select('count', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('company_id', userCompanyId) // Filter by company_id
-      .eq('status', 'On-Site Complete')
-
-    if (allError || pendingAcceptanceError || pendingScheduleError || scheduledError || onSiteCompleteError) {
-      console.error("Error fetching project counts:", allError || pendingAcceptanceError || pendingScheduleError || scheduledError || onSiteCompleteError)
-      return
-    }
-
-    setProjectCounts({
-      all: allCount || 0,
-      pendingAcceptance: pendingAcceptanceCount || 0,
-      pendingSchedule: pendingScheduleCount || 0,
-      scheduled: scheduledCount || 0,
-      onSiteComplete: onSiteCompleteCount || 0,
-    })
-  }, [user, supabase])
+  }, [user, accessToken])
 
   useEffect(() => {
     fetchProjectCounts()
@@ -112,21 +83,15 @@ export function AppSidebar() {
   }
 
   const handleSyncWorkOrders = async () => {
-    if (!user || !session) {
+    if (!user || !accessToken) {
       toast({ title: "Sync Failed", description: "You must be logged in to sync work orders.", variant: "destructive" });
       return;
     }
     setIsSyncing(true);
     try {
-      // Corrected: Removed manual headers. `invoke` handles auth automatically.
-      const { data, error } = await supabase.functions.invoke('sync-work-orders');
-
-      if (error || data.error) {
-        throw new Error(error?.message || data.error);
-      }
-
-      toast({ title: "Sync Successful", description: `Synced ${data.syncedProjectIds.length} work orders.` });
-      fetchProjectCounts(); // Refresh counts after sync
+      // Refresh work orders from CPQ API
+      await fetchProjectCounts();
+      toast({ title: "Sync Successful", description: "Work orders refreshed from CPQ API." });
     } catch (error: any) {
       console.error("Error syncing work orders:", error);
       toast({ title: "Sync Failed", description: error.message, variant: "destructive" });

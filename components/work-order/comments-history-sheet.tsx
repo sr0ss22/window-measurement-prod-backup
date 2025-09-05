@@ -7,7 +7,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/context/unified-auth-context";
 import { toast } from "@/components/ui/use-toast";
 import type { ProjectComment } from "@/types/project";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -122,7 +122,7 @@ export function CommentsHistorySheet({ isOpen, onOpenChange, projectId }: Commen
 
   // Real-time subscription for new comments
   useEffect(() => {
-    if (!user || !projectId) return;
+    if (!user || !projectId || !supabase) return;
 
     const channel = supabase
       .channel(`project_comments:${projectId}`)

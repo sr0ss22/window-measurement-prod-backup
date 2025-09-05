@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/context/unified-auth-context";
+import { workOrdersService, WorkOrder } from "@/apiUtils/services/workOrdersService";
 import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 export default function WorkOrderDetailContent({ projectId }: { projectId: string }) {
   const router = useRouter();
-  const { user, supabase, isLoading: isAuthLoading } = useAuth();
+  const { user, accessToken, isLoading: isAuthLoading } = useAuth();
   const { isMobile } = useSidebar();
 
   const [project, setProject] = useState<ProjectRecord | null>(null);
@@ -78,34 +79,64 @@ export default function WorkOrderDetailContent({ projectId }: { projectId: strin
   const [appointmentWindow, setAppointmentWindow] = useState<string>("2");
 
   const fetchProjectData = useCallback(async () => {
-    if (!user || !projectId) return;
+    if (!accessToken || !projectId) return;
 
     setIsLoading(true);
     try {
-      // Fetch project details
-      const { data: projectData, error: projectError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .single();
-
-      if (projectError) {
-        console.error("Error fetching project:", projectError);
-        toast({ title: "Error", description: "Could not load project details.", variant: "destructive" });
-        router.push('/projects');
-        return;
+      // Fetch work order details from CPQ API
+      const workOrderData = await workOrdersService.getWorkOrder(projectId, accessToken);
+      
+      if (!workOrderData) {
+        throw new Error('Work order data is undefined');
       }
-      setProject(projectData as ProjectRecord);
+      
+      console.log('Work order data received:', workOrderData);
+      console.log('Work order details:', workOrderData.details);
+      console.log('Customer contact info:', workOrderData.customer_contact_info);
+      console.log('Seller contact info:', workOrderData.seller_contact_info);
+      console.log('Work order number:', workOrderData.workOrderNumber);
+      console.log('Customer name:', workOrderData.customerName);
+      console.log('Schedule date:', workOrderData.scheduleDate);
+      console.log('Seller name:', workOrderData.sellerName);
+      
+      // Use the transformed work order data directly as ProjectRecord
+      const projectData: ProjectRecord = {
+        id: workOrderData.id,
+        name: workOrderData.name || 'Unnamed Project',
+        customer_name: workOrderData.customerName,
+        schedule_date: workOrderData.scheduleDate,
+        seller_name: workOrderData.sellerName,
+        work_order_number: workOrderData.workOrderNumber,
+        created_at: workOrderData.createdAt,
+        updated_at: workOrderData.updatedAt,
+        status: workOrderData.status as any, // Type assertion for now
+        address: workOrderData.address,
+        phone: workOrderData.phone,
+        follow_up_date: workOrderData.followUpDate,
+        work_type: workOrderData.workType as any || 'Measure', // Type assertion for now
+        details: workOrderData.details,
+        customer_contact_info: workOrderData.customer_contact_info,
+        seller_contact_info: workOrderData.seller_contact_info,
+        payment_info: workOrderData.payment_info,
+        related_items: workOrderData.related_items,
+      };
+
+      console.log('Setting project data:', projectData);
+      console.log('Customer contact info in project:', projectData.customer_contact_info);
+      console.log('Seller contact info in project:', projectData.seller_contact_info);
+      console.log('Customer name in project:', projectData.customer_name);
+      console.log('Seller name in project:', projectData.seller_name);
+      console.log('Work order number in project:', projectData.work_order_number);
+      console.log('Schedule date in project:', projectData.schedule_date);
+      console.log('Follow up date in project:', projectData.follow_up_date);
+      
+      setProject(projectData);
+      setWindowItems([]); // TODO: Implement windows with CPQ API
+      setProjectEvents([]); // TODO: Implement project events with CPQ API
 
       // Set initial schedule date if available
-      if (projectData.schedule_date) {
-        let date: Date;
-        if (projectData.schedule_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [year, month, day] = projectData.schedule_date.split('-').map(Number);
-          date = new Date(year, month - 1, day);
-        } else {
-          date = parseISO(projectData.schedule_date);
-        }
+      if (workOrderData.scheduleDate) {
+        const date = new Date(workOrderData.scheduleDate);
         if (!isNaN(date.getTime())) {
           setScheduleDate(date);
         } else {
@@ -115,120 +146,40 @@ export default function WorkOrderDetailContent({ projectId }: { projectId: strin
         setScheduleDate(undefined);
       }
 
-      // Fetch associated window measurements
-      const { data: windowData, error: windowError } = await supabase
-        .from("window_measurements")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("line_number", { ascending: true });
-
-      if (windowError) {
-        console.error("Error fetching window items:", windowError);
-        toast({ title: "Error", description: "Could not load window items.", variant: "destructive" });
-      } else {
-        const loadedWindows: WindowItem[] = windowData.map(dbItem => ({
-          id: dbItem.id,
-          lineNumber: dbItem.line_number,
-          location: dbItem.data?.location || "",
-          windowNumber: dbItem.data?.windowNumber || "",
-          product: dbItem.data?.product || "",
-          width: dbItem.data?.width || 0,
-          height: dbItem.data?.height || 0,
-          depth: dbItem.data?.depth || 0,
-          mountType: dbItem.data?.mountType || "",
-          controlType: dbItem.data?.controlType || "",
-          controlLength: dbItem.data?.controlLength || "",
-          tilt: dbItem.data?.tilt || "",
-          sbs: dbItem.data?.sbs || "",
-          stackPosition: dbItem.data?.stackPosition || "",
-          takeDown: dbItem.data?.takeDown || false,
-          hardSurface: dbItem.data?.hardSurface || false,
-          holdDown: dbItem.data?.holdDown || false,
-          tallWindow12: dbItem.data?.tallWindow12 || false,
-          tallWindow16: dbItem.data?.tallWindow16 || false,
-          comments: dbItem.data?.comments || "",
-          notes: dbItem.data?.notes || "",
-          isExpanded: false,
-          image: dbItem.image_path,
-          annotations: dbItem.annotations_path,
-          wizardImage: dbItem.wizard_image_path,
-          wizardMeasurements: dbItem.wizardMeasurements || dbItem.data?.wizardMeasurements || null,
-          wizardWindowBounds: dbItem.wizardWindowBounds || dbItem.data?.wizardWindowBounds || null,
-          signature: dbItem.signature_path,
-          uploadedFiles: dbItem.uploaded_files_paths?.map((f: any) => ({ id: f.id, name: f.name, type: 'unknown', data: '', path: f.path })) || [],
-        }));
-        setWindowItems(loadedWindows);
-      }
-
-      // Fetch project events for history tab
-      const { data: eventsData, error: eventsError } = await supabase
-        .from('project_events')
-        .select(`id, event_date, event_time, appointment_window, event_type, projects (name, customer_name)`)
-        .eq('project_id', projectId)
-        .order('event_date', { ascending: false })
-        .order('event_time', { ascending: false });
-
-      if (eventsError) {
-        console.error("Error fetching project events:", eventsError);
-      } else {
-        setProjectEvents(eventsData as ProjectEvent[]);
-      }
-
-    } catch (error) {
-      console.error("Failed to fetch project data:", error);
+    } catch (error: any) {
+      console.error("Error fetching work order:", error);
+      toast({ 
+        title: "Error", 
+        description: "Could not fetch work order data.", 
+        variant: "destructive" 
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [user, projectId, supabase, router]);
+  }, [accessToken, projectId, router]);
 
   const fetchUnreadCount = useCallback(async () => {
-    if (!user || !projectId) return;
-    const { count, error } = await supabase
-      .from('notifications')
-      .select('count', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('project_id', projectId)
-      .eq('is_read', false);
-    
-    if (!error) {
-      setUnreadCommentCount(count || 0);
-    }
-  }, [user, projectId, supabase]);
+    // TODO: Implement unread count with CPQ API
+    // For now, just set to 0
+    setUnreadCommentCount(0);
+  }, [projectId]);
 
   useEffect(() => {
-    if (!isAuthLoading && !user) {
+    if (!isAuthLoading && !accessToken) {
       router.push('/login');
-    } else if (user) {
+    } else if (accessToken) {
       fetchProjectData();
       fetchUnreadCount();
     }
-  }, [user, isAuthLoading, projectId, fetchProjectData, fetchUnreadCount, router]);
+  }, [accessToken, isAuthLoading, projectId, fetchProjectData, fetchUnreadCount, router]);
 
-  useEffect(() => {
-    if (!user || !projectId) return;
-    const channel = supabase
-      .channel(`project_notifications:${projectId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications', filter: `project_id=eq.${projectId}` },
-        () => fetchUnreadCount()
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user, projectId, supabase, fetchUnreadCount]);
+  // TODO: Implement real-time notifications with CPQ API or WebSocket
 
   const handleCommentsSheetOpen = async (open: boolean) => {
     setIsCommentsSheetOpen(open);
     if (open && unreadCommentCount > 0) {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('user_id', user!.id)
-        .eq('project_id', projectId)
-        .eq('is_read', false);
-      if (!error) {
-        setUnreadCommentCount(0);
-      }
+      // TODO: Implement marking notifications as read with CPQ API
+      setUnreadCommentCount(0);
     }
   };
 
@@ -254,67 +205,20 @@ export default function WorkOrderDetailContent({ projectId }: { projectId: strin
   };
 
   const handleAcceptProject = async () => {
-    if (!user || !project) return;
-    const today = new Date();
-    const formattedDate = format(today, 'yyyy-MM-dd');
-    const calculatedFollowUpDate = format(addDays(today, 2), 'yyyy-MM-dd');
-    try {
-      const { error: eventError } = await supabase
-        .from('project_events')
-        .insert({ project_id: project.id, user_id: user.id, event_date: formattedDate, event_type: 'accepted' });
-      if (eventError) throw new Error(eventError.message);
-      const { error: projectUpdateError } = await supabase
-        .from('projects')
-        .update({ status: 'Scheduled', schedule_date: project.schedule_date || formattedDate, follow_up_date: project.follow_up_date || calculatedFollowUpDate })
-        .eq('id', project.id);
-      if (projectUpdateError) throw new Error(projectUpdateError.message);
-      toast({ title: "Success", description: "Project accepted and scheduled." });
-      fetchProjectData();
-    } catch (error: any) {
-      toast({ title: "Error", description: `Could not accept project: ${error.message}`, variant: "destructive" });
-    }
+    if (!project) return;
+    // TODO: Implement project acceptance with CPQ API
+    toast({ title: "Feature Coming Soon", description: "Project acceptance will be available soon." });
   };
 
   const handleScheduleProject = async () => {
-    if (!scheduleDate || isNaN(scheduleDate.getTime()) || !user || !project) {
+    if (!scheduleDate || isNaN(scheduleDate.getTime()) || !project) {
       toast({ title: "Error", description: "Please select a valid date.", variant: "destructive" });
       return;
     }
 
-    const formattedDate = format(scheduleDate, 'yyyy-MM-dd');
-    const calculatedFollowUpDate = format(addDays(scheduleDate, 2), 'yyyy-MM-dd');
-
-    try {
-      const { error: eventError } = await supabase
-        .from('project_events')
-        .insert({
-          project_id: project.id,
-          user_id: user.id,
-          event_date: formattedDate,
-          event_time: scheduleTime,
-          appointment_window: appointmentWindow,
-          event_type: 'schedule',
-        });
-
-      if (eventError) throw new Error(eventError.message);
-
-      const { error: projectUpdateError } = await supabase
-        .from('projects')
-        .update({ 
-          schedule_date: formattedDate, 
-          status: 'Scheduled',
-          follow_up_date: calculatedFollowUpDate,
-        })
-        .eq('id', project.id);
-
-      if (projectUpdateError) throw new Error(projectUpdateError.message);
-
-      toast({ title: "Success", description: "Project has been scheduled." });
-      setIsScheduleDialogOpen(false);
-      fetchProjectData();
-    } catch (error: any) {
-      toast({ title: "Error", description: `Could not schedule project: ${error.message}`, variant: "destructive" });
-    }
+    // TODO: Implement project scheduling with CPQ API
+    toast({ title: "Feature Coming Soon", description: "Project scheduling will be available soon." });
+    setIsScheduleDialogOpen(false);
   };
 
   const handleMeasureEntry = () => {
@@ -330,13 +234,11 @@ export default function WorkOrderDetailContent({ projectId }: { projectId: strin
   };
 
   const handleSubmitMeasure = async () => {
-    if (!user || !project) return;
+    if (!project) return;
     setIsSubmittingMeasure(true);
     try {
-      const { data, error } = await supabase.functions.invoke('submit-measure', { body: { projectId: project.id } });
-      if (error || data.error) throw new Error(error?.message || data.error);
-      toast({ title: "Measure Submitted", description: `Project "${data.project.name}" marked as measured.` });
-      fetchProjectData();
+      // TODO: Implement measure submission with CPQ API
+      toast({ title: "Feature Coming Soon", description: "Measure submission will be available soon." });
     } catch (error: any) {
       toast({ title: "Submission Failed", description: error.message, variant: "destructive" });
     } finally {
@@ -366,6 +268,16 @@ export default function WorkOrderDetailContent({ projectId }: { projectId: strin
 
   const isOverdue = project.follow_up_date && isPast(parseISO(project.follow_up_date));
 
+  // Debug logging for project state
+  console.log('Rendering project state:', project);
+  console.log('Customer contact info in render:', project.customer_contact_info);
+  console.log('Seller contact info in render:', project.seller_contact_info);
+  console.log('Customer name in render:', project.customer_name);
+  console.log('Seller name in render:', project.seller_name);
+  console.log('Work order number in render:', project.work_order_number);
+  console.log('Schedule date in render:', project.schedule_date);
+  console.log('Follow up date in render:', project.follow_up_date);
+
   return (
     <div className="relative min-h-screen bg-black">
       <main className="relative z-10">
@@ -379,10 +291,10 @@ export default function WorkOrderDetailContent({ projectId }: { projectId: strin
               </div>
               <div className="text-center">
                 <h1 className="text-lg font-bold truncate flex items-center justify-center gap-2">
-                  <span>WO#: {project.work_order_number || 'N/A'}</span>
+                  <span>WO#: {project.work_order_number || project.details?.work_no || 'N/A'}</span>
                   <WorkTypeIcon className="h-5 w-5 text-current" project={project} />
                 </h1>
-                <p className="text-white/80 truncate">{project.customer_name || project.name}</p>
+                <p className="text-white/80 truncate">{project.customer_name || project.customer_contact_info?.contact_name || project.name}</p>
               </div>
               <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
                 <Button variant="ghost" size="icon" onClick={() => handleCommentsSheetOpen(true)} className="relative">
@@ -435,7 +347,7 @@ export default function WorkOrderDetailContent({ projectId }: { projectId: strin
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <p className="col-span-full"><strong>Summary:</strong> {project.details?.summary || 'N/A'}</p>
                       <p className="col-span-full"><strong>Instructions:</strong> {project.details?.instructions || 'N/A'}</p>
-                      <p><strong>Work No.:</strong> {project.details?.work_no || 'N/A'}</p>
+                      <p><strong>Work No.:</strong> {project.details?.work_no || project.work_order_number || 'N/A'}</p>
                       <p><strong>Field Ops Rep:</strong> {project.details?.field_ops_rep || 'N/A'}</p>
                       <p><strong>Service Order:</strong> {project.details?.service_order || 'N/A'}</p>
                       <div className="flex items-center gap-2"><strong>Work Type:</strong><Badge>{project.work_type || 'N/A'}</Badge></div>
@@ -456,10 +368,10 @@ export default function WorkOrderDetailContent({ projectId }: { projectId: strin
                   </ProjectDetailsSection>
                   <ProjectDetailsSection title="Customer Info">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <p><strong>Project Name:</strong> {project.name || 'N/A'}</p>
+                      <p><strong>Project Name:</strong> {project.customer_name || project.customer_contact_info?.contact_name || project.name || 'N/A'}</p>
                       <p><strong>Account:</strong> {project.customer_contact_info?.account || 'N/A'}</p>
-                      <p><strong>Contact:</strong> {project.customer_contact_info?.contact_name || 'N/A'}</p>
-                      <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-gray-600" /><a href={`tel:${project.customer_contact_info?.home_phone}`} className="text-blue-600 underline">{project.customer_contact_info?.home_phone || 'N/A'}</a></p>
+                      <p><strong>Contact:</strong> {project.customer_contact_info?.contact_name || project.customer_name || 'N/A'}</p>
+                      <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-gray-600" /><a href={`tel:${project.customer_contact_info?.home_phone || project.phone}`} className="text-blue-600 underline">{project.customer_contact_info?.home_phone || project.phone || 'N/A'}</a></p>
                       <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-gray-600" /><a href={`tel:${project.customer_contact_info?.mobile_phone}`} className="text-blue-600 underline">{project.customer_contact_info?.mobile_phone || 'N/A'}</a></p>
                       <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-gray-600" /><a href={`mailto:${project.customer_contact_info?.email}`} className="text-blue-600 underline">{project.customer_contact_info?.email || 'N/A'}</a></p>
                       <p className="col-span-full flex items-center gap-2"><MapPin className="h-4 w-4 text-gray-600" /><a href={`https://maps.google.com/?q=${encodeURIComponent(project.address || '')}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">{project.address || 'N/A'}</a></p>
@@ -467,7 +379,7 @@ export default function WorkOrderDetailContent({ projectId }: { projectId: strin
                   </ProjectDetailsSection>
                   <ProjectDetailsSection title="Seller Info">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <p><strong>Company:</strong> {project.seller_contact_info?.company || 'N/A'}</p>
+                      <p><strong>Company:</strong> {project.seller_contact_info?.company || project.seller_name || 'N/A'}</p>
                       <p><strong>Contact:</strong> {project.seller_contact_info?.contact_name || 'N/A'}</p>
                       <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-gray-600" /><a href={`tel:${project.seller_contact_info?.phone}`} className="text-blue-600 underline">{project.seller_contact_info?.phone || 'N/A'}</a></p>
                       <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-gray-600" /><a href={`mailto:${project.seller_contact_info?.email}`} className="text-blue-600 underline">{project.seller_contact_info?.email || 'N/A'}</a></p>

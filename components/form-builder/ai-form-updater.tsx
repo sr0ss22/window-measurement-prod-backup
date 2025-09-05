@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send, X, Bot, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FormConfig, FormField } from "@/types/form-config";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/context/unified-auth-context";
 import { toast } from "@/components/ui/use-toast";
 
 interface Message {

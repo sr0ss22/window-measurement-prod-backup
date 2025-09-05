@@ -7,7 +7,7 @@ import { ArrowLeft, Bot, Send, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/context/unified-auth-context";
 import type { WindowItem } from "@/types/window-item";
 import { formatMeasurement } from "@/utils/measurements";
 import { Skeleton } from "@/components/ui/skeleton";

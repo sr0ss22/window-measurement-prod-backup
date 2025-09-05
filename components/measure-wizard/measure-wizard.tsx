@@ -151,7 +151,7 @@ export function MeasureWizard({ isOpen, onClose, window, onSave }: MeasureWizard
 
   const handleBackToWorkOrder = () => {
     if (window.project_id) {
-      router.push(`/work-order?id=${window.project_id}`);
+      router.push(`/work-orders/${window.project_id}`);
     } else {
       router.push('/projects');
     }

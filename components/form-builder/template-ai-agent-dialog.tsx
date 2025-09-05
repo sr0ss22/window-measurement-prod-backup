@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, FileText, X, Loader2, AlertCircle } from "lucide-react";
 import type { FormConfig } from "@/types/form-config";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/context/unified-auth-context";
 
 interface TemplateAiAgentDialogProps {
   isOpen: boolean;

@@ -52,7 +52,7 @@ export function NotificationItem({ notification, onDelete, onPinToggle }: Notifi
   const handleClick = () => {
     if (Math.abs(dragX) < 10) { // Prevent click on swipe
       if (notification.project?.id) {
-        router.push(`/work-order?id=${notification.project.id}`);
+        router.push(`/work-orders/${notification.project.id}`);
       }
     }
   };

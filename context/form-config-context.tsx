@@ -4,7 +4,7 @@ import { createContext, useContext, useReducer, type ReactNode, type Dispatch, u
 import type { FormConfig, FormField, FormSection } from "@/types/form-config";
 import { loadFormConfigFromSupabase, saveFormConfigToSupabase } from "@/utils/form-config-service";
 import { toast } from "@/components/ui/use-toast";
-import { useAuth } from "./auth-context";
+import { useAuth } from "./unified-auth-context";
 import { v4 as uuidv4 } from 'uuid';
 
 interface FormConfigState {

@@ -3,7 +3,7 @@
 import React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { User, MapPin, Phone, Hash, Mail } from "lucide-react"
-import type { ProjectRecord } from "@/app/projects/page"
+import type { ProjectRecord } from "@/types/project"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 

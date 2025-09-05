@@ -8,12 +8,12 @@ import { Badge } from "@/components/ui/badge"
 import { useMobile } from "@/hooks/use-mobile"
 import { useState, useEffect } from "react"
 import { useFormConfig } from "@/context/form-config-context"
-import { useAuth } from "@/context/auth-context"
+import { useAuth } from "@/context/unified-auth-context"
 import { toast } from "@/components/ui/use-toast"
 import { GlobalFormSection } from "./global-form-section"
 import { validateGlobalData } from "@/utils/validation"
 import { ProjectInfoCard } from "./project-info-card"
-import type { ProjectRecord } from "@/app/projects/page"
+import type { ProjectRecord } from "@/types/project"
 import {
   Accordion,
   AccordionContent,

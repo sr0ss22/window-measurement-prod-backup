@@ -5,7 +5,7 @@ import WorkOrderDetailContent from "./content";
 
 export default function ClientWorkOrderPage() {
   const searchParams = useSearchParams();
-  const projectId = searchParams.get("id");
+  const projectId = searchParams?.get("id");
 
   if (!projectId) {
     return (

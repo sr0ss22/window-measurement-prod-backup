@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/context/unified-auth-context";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
@@ -13,9 +13,10 @@ import { ClipboardList, ArrowLeft, Home, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
+import { workOrdersService } from "@/apiUtils/services/workOrdersService";
 
 export default function AllActiveWorkPage() {
-  const { user, supabase, isLoading: isAuthLoading } = useAuth();
+  const { user, accessToken, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,53 +24,70 @@ export default function AllActiveWorkPage() {
   const [activeTab, setActiveTab] = useState('accept');
 
   const fetchProjects = useCallback(async () => {
-    if (!user) return;
+    if (!accessToken) return;
     setIsLoading(true);
 
-    // Fetch user's company_id first
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('company_id')
-      .eq('id', user.id)
-      .single();
+    try {
+      const response = await workOrdersService.getWorkOrders(
+        {
+          page: 1,
+          pageSize: 100,
+          status: 'Active',
+        },
+        accessToken
+      );
 
-    if (profileError || !profileData?.company_id) {
-      console.error("Error fetching user's company ID for projects:", profileError);
-      toast({ title: "Error", description: "Could not retrieve your company information.", variant: "destructive" });
+      // Transform work orders to ProjectRecord format
+      const transformedProjects: ProjectRecord[] = response.workOrders.map((workOrder) => ({
+        id: workOrder.id,
+        name: workOrder.name,
+        customer_name: workOrder.customerName,
+        schedule_date: workOrder.scheduleDate,
+        seller_name: workOrder.sellerName,
+        work_order_number: workOrder.workOrderNumber,
+        created_at: workOrder.createdAt,
+        updated_at: workOrder.updatedAt,
+        status: workOrder.status as any,
+        address: workOrder.address,
+        phone: workOrder.phone,
+        follow_up_date: workOrder.followUpDate,
+        work_type: workOrder.workType as any,
+        details: workOrder.details,
+        customer_contact_info: workOrder.customer_contact_info,
+        seller_contact_info: workOrder.seller_contact_info,
+        payment_info: workOrder.payment_info,
+        related_items: workOrder.related_items,
+      }));
+
+      console.log('Transformed projects for cards:', transformedProjects);
+      console.log('First project work order number:', transformedProjects[0]?.work_order_number);
+      console.log('First project schedule date:', transformedProjects[0]?.schedule_date);
+      console.log('First project seller name:', transformedProjects[0]?.seller_name);
+
+      setProjects(transformedProjects);
+    } catch (error: any) {
+      console.error('Error fetching work orders:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to fetch work orders",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-      return;
     }
-    const userCompanyId = profileData.company_id;
-
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('company_id', userCompanyId) // Filter by company_id
-      .neq('status', 'Complete'); // Filter out 'Complete' projects for 'All Active Work'
-
-    if (error) {
-      console.error("Error fetching all active projects:", error);
-      toast({ title: "Error", description: "Could not fetch your projects.", variant: "destructive" });
-    } else {
-      setProjects(data as ProjectRecord[]);
-    }
-    setIsLoading(false);
-  }, [user, supabase]);
+  }, [accessToken]);
 
   useEffect(() => {
-    if (!isAuthLoading && !user) {
+    if (!isAuthLoading && !accessToken) {
       router.push('/login');
-    } else if (user) {
+    } else if (accessToken) {
       fetchProjects();
     }
-  }, [user, isAuthLoading, router, fetchProjects]);
+  }, [accessToken, isAuthLoading, router, fetchProjects]);
 
   const handleDeleteProject = async (projectId: string) => {
-    await supabase.from('window_measurements').delete().eq('project_id', projectId);
-    await supabase.from('global_form_data').delete().eq('project_id', projectId);
-    await supabase.from('projects').delete().eq('id', projectId);
-    toast({ title: "Success", description: "Project deleted." });
-    fetchProjects();
+    // Note: Delete functionality would need to be implemented via CPQ API
+    toast({ title: "Delete Feature", description: "Delete functionality coming soon!" });
   };
 
   const filteredProjects = useMemo(() => {

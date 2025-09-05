@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/unified-auth-context';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Bell } from 'lucide-react';
@@ -10,7 +10,7 @@ import type { Notification } from '@/types/notification';
 import { toast } from '@/components/ui/use-toast';
 
 export function NotificationBell() {
-  const { user, supabase } = useAuth();
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -18,39 +18,18 @@ export function NotificationBell() {
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('notifications')
-      .select(`
-        *,
-        actor:actor_id ( id, first_name, last_name, avatar_url ),
-        project:project_id ( id, name, customer_name, work_order_number ),
-        comment:comment_id ( id, comment_text )
-      `)
-      .eq('user_id', user.id)
-      .order('is_pinned', { ascending: false })
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error("Error fetching notifications:", error);
-    } else {
-      setNotifications(data as Notification[]);
-    }
-  }, [user, supabase]);
+    // TODO: Implement notifications with CPQ API or local storage
+    // For now, show empty state
+    setNotifications([]);
+  }, [user]);
 
   const fetchUnreadCount = useCallback(async () => {
     if (!user) return;
-    const { count, error } = await supabase
-      .from('notifications')
-      .select('count', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('is_read', false);
     
-    if (error) {
-      console.error("Error fetching unread count:", error);
-    } else {
-      setUnreadCount(count || 0);
-    }
-  }, [user, supabase]);
+    // TODO: Implement unread count with CPQ API or local storage
+    // For now, show 0
+    setUnreadCount(0);
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -62,56 +41,31 @@ export function NotificationBell() {
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase
-      .channel('public:notifications')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          fetchNotifications();
-          fetchUnreadCount();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, supabase, fetchNotifications, fetchUnreadCount]);
+    // TODO: Implement real-time notifications with CPQ API or WebSocket
+    // For now, just fetch once
+    fetchNotifications();
+    fetchUnreadCount();
+  }, [user, fetchNotifications, fetchUnreadCount]);
 
   const handleOpenChange = async (open: boolean) => {
     setIsOpen(open);
     if (open && unreadCount > 0) {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('user_id', user!.id)
-        .eq('is_read', false);
-      
-      if (error) {
-        console.error("Error marking notifications as read:", error);
-      } else {
-        setUnreadCount(0);
-      }
+      // TODO: Implement marking notifications as read with CPQ API
+      // For now, just reset the count
+      setUnreadCount(0);
     }
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('notifications').delete().eq('id', id);
-    if (error) {
-      toast({ title: "Error", description: "Could not delete notification.", variant: "destructive" });
-    } else {
-      setNotifications(prev => prev.filter(n => n.id !== id));
-    }
+    // TODO: Implement deleting notifications with CPQ API
+    // For now, just remove from local state
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   const handlePinToggle = async (id: string, isPinned: boolean) => {
-    const { error } = await supabase.from('notifications').update({ is_pinned: !isPinned }).eq('id', id);
-    if (error) {
-      toast({ title: "Error", description: "Could not update pin status.", variant: "destructive" });
-    } else {
-      fetchNotifications(); // Re-fetch to re-order
-    }
+    // TODO: Implement pinning notifications with CPQ API
+    // For now, just re-fetch to update UI
+    fetchNotifications();
   };
 
   return (

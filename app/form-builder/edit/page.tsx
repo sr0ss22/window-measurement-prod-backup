@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/context/unified-auth-context";
 import { useRouter, useSearchParams } from "next/navigation"; // Changed useParams to useSearchParams
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

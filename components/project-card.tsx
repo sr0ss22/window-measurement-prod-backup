@@ -15,7 +15,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { useState, useEffect } from "react";
 import { format, parseISO, addDays, isBefore, startOfToday } from "date-fns";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/context/unified-auth-context";
 import {
   Dialog,
   DialogContent,
@@ -187,7 +187,7 @@ export function ProjectCard({ project, onDelete, onUpdate }: ProjectCardProps) {
 
   return (
     <>
-      <Link href={`/work-order?id=${project.id}`} className="block">
+      <Link href={`/work-orders/${project.id}`} className="block">
         <Card className={cn(
           "flex flex-col h-full cursor-pointer hover:shadow-lg transition-shadow duration-200",
           isOverdue && "border-l-4 border-red-500"
@@ -225,7 +225,7 @@ export function ProjectCard({ project, onDelete, onUpdate }: ProjectCardProps) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                 <DropdownMenuItem asChild>
-                  <Link href={`/work-order?id=${project.id}`}>
+                  <Link href={`/work-orders/${project.id}`}>
                     <FileText className="mr-2 h-4 w-4" />
                     <span>View Work Order</span>
                   </Link>

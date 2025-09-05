@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ProjectCard } from "./project-card";
-import type { ProjectRecord } from "@/app/projects/page";
+import type { ProjectRecord } from "@/types/project";
 import {
   AlertDialog,
   AlertDialogAction,

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useReducer, type ReactNode, type Dispatch, useCallback, useEffect, useState, useRef } from "react"
 import type { WindowItem, UploadedFile, GlobalFormData } from "@/types/window-item"
-import { useAuth } from "./auth-context"
+import { useAuth } from "./unified-auth-context"
 import { toast } from "@/components/ui/use-toast"
 import { uploadBase64File, downloadFileAsBase64, deleteFile } from "@/integrations/supabase/storage"
 import { createClient } from "@/integrations/supabase/client"

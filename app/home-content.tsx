@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useFormConfig } from "@/context/form-config-context"
-import { useAuth } from "@/context/auth-context"
+import { useAuth } from "@/context/unified-auth-context"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMobile } from "@/hooks/use-mobile"
@@ -367,7 +367,7 @@ export default function HomeContent() {
         <div className="h-[150px] md:h-[120px]">
           <div className="ios:pt-[env(safe-area-inset-top)] h-full">
             <div className="container mx-auto px-4 text-white flex justify-between items-center h-full">
-              <Button variant="ghost" size="icon" onClick={() => router.push(`/work-order?id=${projectId}`)}>
+              <Button variant="ghost" size="icon" onClick={() => router.push(`/work-orders/${projectId}`)}>
                 <ArrowLeft className="h-6 w-6" />
               </Button>
               <div className="text-center">

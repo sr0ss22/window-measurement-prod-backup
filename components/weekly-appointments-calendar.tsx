@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/context/unified-auth-context";
 import { format, startOfMonth, endOfMonth, parseISO, isSameDay } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,16 +26,16 @@ export function WeeklyAppointmentsCalendar() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
   useEffect(() => {
-    const fetchAppointments = async () => {
-      if (!user) return;
-      setIsLoading(true);
+      const fetchAppointments = async () => {
+    if (!user || !supabase) return;
+    setIsLoading(true);
 
-      // Fetch user's company_id first
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('id', user.id)
-        .single();
+    // Fetch user's company_id first
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('company_id')
+      .eq('id', user.id)
+      .single();
 
       if (profileError || !profileData?.company_id) {
         console.error("Error fetching user's company ID for appointments:", profileError);
@@ -125,7 +125,7 @@ export function WeeklyAppointmentsCalendar() {
             {selectedDayAppointments.length > 0 ? (
               selectedDayAppointments.map((appointment) => (
                 <Link
-                  href={`/work-order?id=${appointment.project_id}`}
+                  href={`/work-orders/${appointment.project_id}`}
                   key={appointment.id}
                   className="block"
                 >

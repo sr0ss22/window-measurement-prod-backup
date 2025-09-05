@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/context/unified-auth-context";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
@@ -10,6 +10,7 @@ import { TodaysAppointments } from "@/components/todays-appointments";
 import { WeeklyAppointmentsCalendar } from "@/components/weekly-appointments-calendar";
 import { TaskManager } from "@/components/task-manager";
 import type { ProjectRecord } from "@/types/project";
+import { workOrdersService } from "@/apiUtils/services/workOrdersService";
 import { Wrench, Home, ClipboardList, Calendar, LifeBuoy, CalendarCheck2, Plus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
@@ -29,7 +30,7 @@ const mockSupportTickets = [
 ];
 
 export default function ProjectsDashboardPage() {
-  const { user, session, supabase, isLoading: isAuthLoading } = useAuth();
+  const { user, accessToken, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
   const [allProjects, setAllProjects] = useState<ProjectRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,45 +53,69 @@ export default function ProjectsDashboardPage() {
   }, [isLoading]); // Re-attach listener if loading state changes
 
   const fetchAllProjects = useCallback(async () => {
-    if (!user) return;
+    if (!accessToken) return;
     setIsLoading(true);
 
-    // Fetch user's company_id first
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('company_id')
-      .eq('id', user.id)
-      .single();
+    try {
+      // Fetch work orders from CPQ API via our local API route
+      const response = await workOrdersService.getWorkOrders({
+        page: 1,
+        pageSize: 100,
+      }, accessToken);
 
-    if (profileError || !profileData?.company_id) {
-      console.error("Error fetching user's company ID for projects:", profileError);
-      toast({ title: "Error", description: "Could not retrieve your company information.", variant: "destructive" });
-      setIsLoading(false);
-      return;
-    }
-    const userCompanyId = profileData.company_id;
+      console.log("✅ Work orders fetched successfully:", response.workOrders?.length || 0);
+      
+      // Transform work orders to project records
+      const projects: ProjectRecord[] = response.workOrders.map(workOrder => ({
+        id: workOrder.id,
+        name: workOrder.customerName || 'Unnamed Project',
+        status: workOrder.status,
+        created_at: workOrder.createdAt,
+        updated_at: workOrder.updatedAt,
+        company_id: workOrder.dealerId || '',
+        installer_id: workOrder.installerId || '',
+        customer_name: workOrder.customerName || '',
+        customer_email: workOrder.customerEmail || '',
+        customer_phone: workOrder.customerPhone || '',
+        address: workOrder.address || '',
+        city: workOrder.city || '',
+        state: workOrder.state || '',
+        zip: workOrder.zip || '',
+        notes: workOrder.notes || '',
+        measurements: workOrder.measurements || [],
+        windows: workOrder.windows || [],
+        total_cost: workOrder.totalCost || 0,
+        labor_cost: workOrder.laborCost || 0,
+        material_cost: workOrder.materialCost || 0,
+        tax: workOrder.tax || 0,
+        discount: workOrder.discount || 0,
+        final_cost: workOrder.finalCost || 0,
+        payment_status: workOrder.paymentStatus || 'pending',
+        installation_date: workOrder.installationDate || null,
+        completion_date: workOrder.completionDate || null,
+        created_by: workOrder.createdBy || '',
+        updated_by: workOrder.updatedBy || '',
+      }));
 
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('company_id', userCompanyId); // Filter by company_id
-
-    if (error) {
+      setAllProjects(projects);
+    } catch (error) {
       console.error("❌ Project fetch error:", error);
-      toast({ title: "Error", description: "Could not fetch project data.", variant: "destructive" });
-    } else {
-      setAllProjects(data as ProjectRecord[]);
+      toast({ 
+        title: "Error", 
+        description: "Failed to fetch work orders from CPQ API.", 
+        variant: "destructive" 
+      });
     }
     setIsLoading(false);
-  }, [user, supabase]);
+  }, [accessToken]);
 
   useEffect(() => {
-    if (!isAuthLoading && !user) {
+    if (!isAuthLoading && !accessToken) {
       router.push('/login');
-    } else if (user) {
+    } else if (accessToken) {
       fetchAllProjects();
     }
-  }, [user, isAuthLoading, router, fetchAllProjects]);
+  }, [accessToken, isAuthLoading, router, fetchAllProjects]);
 
   if (isAuthLoading || isLoading) {
     return (

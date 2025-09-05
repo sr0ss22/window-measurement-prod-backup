@@ -17,10 +17,10 @@ import {
 } from "@/components/ui/dialog";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAuth } from "@/context/auth-context";
+import { useAuth } from "@/context/unified-auth-context";
 import { toast } from "@/components/ui/use-toast";
 import { format, parseISO, isPast, isToday } from "date-fns";
-import type { ProjectRecord } from "@/app/projects/page";
+import type { ProjectRecord } from "@/types/project";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {

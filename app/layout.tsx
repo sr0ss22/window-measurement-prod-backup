@@ -6,10 +6,10 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { WindowProvider } from "@/context/window-context"
 import { Toaster } from "@/components/ui/toaster"
 import { FormConfigProvider } from "@/context/form-config-context"
-import { AuthProvider } from "@/context/auth-context"
 import Script from "next/script"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
+import { Providers } from "@/components/providers"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -35,19 +35,19 @@ export default function RootLayout({
     <html lang="en" className="min-h-screen">
       <body className="min-h-screen overflow-x-hidden">
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-          <AuthProvider>
-            <FormConfigProvider>
-              <WindowProvider>
+          <Providers>
+            <WindowProvider>
+              <FormConfigProvider>
                 <SidebarProvider>
                   <SidebarInset>
                     {children}
                   </SidebarInset>
                   <AppSidebar />
                 </SidebarProvider>
-                <Toaster />
-              </WindowProvider>
-            </FormConfigProvider>
-          </AuthProvider>
+              </FormConfigProvider>
+            </WindowProvider>
+            <Toaster />
+          </Providers>
         </ThemeProvider>
         <Script src="https://docs.opencv.org/4.x/opencv.js" strategy="afterInteractive" />
       </body>
