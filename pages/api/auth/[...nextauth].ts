@@ -13,7 +13,9 @@ const authOptions: NextAuthOptions = {
         },
       },
       // Use custom redirect URI for measure app integration
-      redirectUri: "http://localhost:3000/api/auth/callback/zitadel",
+      redirectUri: process.env.NODE_ENV === 'production' 
+        ? "https://dev.hdbrite.com/api/auth/callback/zitadel"
+        : "http://localhost:3000/api/auth/callback/zitadel",
       async profile(profile: any) {
         try {
           const rawMetadata = profile['urn:zitadel:iam:user:metadata'] || {}
